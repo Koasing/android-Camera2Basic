@@ -42,13 +42,6 @@ interface ImageHandler {
     fun handleImage(image: Image) :Runnable
 }
 
-/**
- * Listener interface that will send back the newly created [Size] of our camera output
- */
-interface OnViewportSizeUpdatedListener {
-    fun onViewportSizeUpdated(viewportWidth: Int, viewportHeight: Int)
-}
-
 interface OnFocusListener {
     fun onFocusStateChanged(focusState: Int)
 }
@@ -59,6 +52,7 @@ interface OnFocusListener {
 class Camera constructor(private val cameraManager: CameraManager, private val cameraId: String) {
     private val characteristics: CameraCharacteristics =
         cameraManager.getCameraCharacteristics(cameraId)
+
     /**
      * A [Semaphore] to prevent the app from exiting before closing the camera.
      */
@@ -73,6 +67,7 @@ class Camera constructor(private val cameraManager: CameraManager, private val c
      * A [CameraCaptureSession] for camera preview.
      */
     private var captureSession: CameraCaptureSession? = null
+
     private var focusListener: OnFocusListener? = null
     /**
      * The current state of camera state for taking pictures.
@@ -93,9 +88,6 @@ class Camera constructor(private val cameraManager: CameraManager, private val c
     private var surface: Surface? = null
     private var isClosed = true
     var deviceRotation: Int = 0 // Device rotation is defined by Screen Rotation
-    var sensorRotation: Int = 0 // Sensor rotation is defined by sensor manager
-    var viewPortSizeListener: OnViewportSizeUpdatedListener? = null
-
 
     companion object {
         // Make thread-safe Singleton
@@ -219,10 +211,6 @@ class Camera constructor(private val cameraManager: CameraManager, private val c
                                         result: TotalCaptureResult) {
             process(result)
         }
-
-    }
-
-    private val onImageAvailableListener = ImageReader.OnImageAvailableListener { reader ->
 
     }
 
@@ -439,7 +427,8 @@ class Camera constructor(private val cameraManager: CameraManager, private val c
                     override fun onCaptureCompleted(session: CameraCaptureSession,
                                                     request: CaptureRequest,
                                                     result: TotalCaptureResult) {
-                        /** do nothing **/
+                        // Once still picture is captured, ImageReader.OnImageAvailable gets called
+                        // You can do completion task here
                     }
                 },
                 backgroundHandler)
@@ -451,6 +440,7 @@ class Camera constructor(private val cameraManager: CameraManager, private val c
 
     /**
      * Retrieves the image orientation from the specified screen rotation.
+     * Used to calculate bitmap image rotation
      */
     fun getImageOrientation(): Int {
         if (deviceRotation == OrientationEventListener.ORIENTATION_UNKNOWN) {
@@ -472,8 +462,8 @@ class Camera constructor(private val cameraManager: CameraManager, private val c
      */
     fun getSensorOrientation() = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
 
-
     fun getFlashSupported() = characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+
     /**
      * Given `choices` of `Size`s supported by a camera, choose the smallest one that
      * is at least as large as the respective texture view size, and that is at most as large as the

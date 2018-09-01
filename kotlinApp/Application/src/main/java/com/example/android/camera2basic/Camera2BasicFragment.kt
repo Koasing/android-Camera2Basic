@@ -74,7 +74,6 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
      */
     private lateinit var previewSize: Size
 
-
     /**
      * This is the output file for our picture.
      */
