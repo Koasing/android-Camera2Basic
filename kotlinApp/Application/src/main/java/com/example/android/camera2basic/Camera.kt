@@ -260,10 +260,11 @@ class Camera constructor(private val cameraManager: CameraManager, private val c
         }
 
         if(isClosed) return
-
-        imageReader?.setOnImageAvailableListener({ reader ->
-            val image = reader.acquireNextImage()
-            backgroundHandler?.post(handler.handleImage(image = image))
+        imageReader?.setOnImageAvailableListener(object: ImageReader.OnImageAvailableListener{
+            override fun onImageAvailable(reader: ImageReader) {
+                val image = reader.acquireNextImage()
+                backgroundHandler?.post(handler.handleImage(image = image))
+            }
         }, backgroundHandler)
 
         lockFocus()

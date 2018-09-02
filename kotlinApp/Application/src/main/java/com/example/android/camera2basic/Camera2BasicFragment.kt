@@ -25,7 +25,10 @@ import android.graphics.Matrix
 import android.graphics.Point
 import android.graphics.RectF
 import android.graphics.SurfaceTexture
-import android.hardware.camera2.*
+import android.hardware.camera2.CameraAccessException
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CaptureRequest
 import android.media.Image
 import android.os.Bundle
 import android.support.v4.app.ActivityCompat
@@ -58,11 +61,6 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
         override fun onSurfaceTextureUpdated(texture: SurfaceTexture) = Unit
 
     }
-
-    /**
-     * ID of the current [CameraDevice].
-     */
-    private lateinit var cameraId: String
 
     /**
      * An [AutoFitTextureView] for camera preview.
@@ -148,8 +146,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
     /**
      * Set up camera Id from id list
      */
-    private fun setUpCameraId() {
-        val manager = activity.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+    private fun setUpCameraId(manager: CameraManager): String? {
         for (cameraId in manager.cameraIdList) {
             val characteristics = manager.getCameraCharacteristics(cameraId)
 
@@ -159,8 +156,9 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
                 cameraDirection == CameraCharacteristics.LENS_FACING_FRONT) {
                 continue
             }
-            this.cameraId = cameraId
+            return cameraId
         }
+        return null
     }
 
     /**
@@ -261,17 +259,17 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
             requestCameraPermission()
             return
         }
-        setUpCameraId()
-
         val manager = activity.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        val cameraId = setUpCameraId(manager) ?: return
+
         try {
             camera = Camera.initInstance(manager, cameraId).apply {
                 setUpCameraOutputs(width, height, this)
                 configureTransform(width, height)
-                open()
+                this.open()
                 val texture = textureView.surfaceTexture
                 texture.setDefaultBufferSize(previewSize.width, previewSize.height)
-                start(Surface(texture))
+                this.start(Surface(texture))
             }
         } catch (e: CameraAccessException) {
             Log.e(TAG, e.toString())
