@@ -26,7 +26,6 @@ import android.graphics.Point
 import android.graphics.RectF
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraAccessException
-import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
 import android.media.Image
@@ -144,24 +143,6 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
     }
 
     /**
-     * Set up camera Id from id list
-     */
-    private fun setUpCameraId(manager: CameraManager): String? {
-        for (cameraId in manager.cameraIdList) {
-            val characteristics = manager.getCameraCharacteristics(cameraId)
-
-            // We don't use a front facing camera in this sample.
-            val cameraDirection = characteristics.get(CameraCharacteristics.LENS_FACING)
-            if (cameraDirection != null &&
-                cameraDirection == CameraCharacteristics.LENS_FACING_FRONT) {
-                continue
-            }
-            return cameraId
-        }
-        return null
-    }
-
-    /**
      * Sets up member variables related to camera.
      *
      * @param width  The width of available size for camera preview
@@ -260,10 +241,9 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
             return
         }
         val manager = activity.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        val cameraId = setUpCameraId(manager) ?: return
 
         try {
-            camera = Camera.initInstance(manager, cameraId).apply {
+            camera = Camera.initInstance(manager).apply {
                 setUpCameraOutputs(width, height, this)
                 configureTransform(width, height)
                 this.open()

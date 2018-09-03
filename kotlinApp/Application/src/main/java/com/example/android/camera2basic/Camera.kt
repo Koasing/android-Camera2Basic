@@ -49,9 +49,32 @@ interface OnFocusListener {
 /**
  * Controller class that operates Non-UI Camera activity
  */
-class Camera constructor(private val cameraManager: CameraManager, private val cameraId: String) {
-    private val characteristics: CameraCharacteristics =
-        cameraManager.getCameraCharacteristics(cameraId)
+class Camera constructor(private val cameraManager: CameraManager) {
+
+    companion object {
+        // Make thread-safe Singleton
+        @Volatile var instance: Camera? = null
+            private set
+
+        fun initInstance(cameraManager: CameraManager): Camera {
+            val i = instance
+            if (i != null) {
+                return i
+            }
+            return synchronized(this) {
+                val created = Camera(cameraManager)
+                instance = created
+                created
+            }
+        }
+    }
+
+    private val characteristics: CameraCharacteristics
+
+    /**
+     * An id for camera device
+     */
+    private val cameraId: String
 
     /**
      * A [Semaphore] to prevent the app from exiting before closing the camera.
@@ -89,22 +112,9 @@ class Camera constructor(private val cameraManager: CameraManager, private val c
     private var isClosed = true
     var deviceRotation: Int = 0 // Device rotation is defined by Screen Rotation
 
-    companion object {
-        // Make thread-safe Singleton
-        @Volatile var instance: Camera? = null
-            private set
-
-        fun initInstance(cameraManager: CameraManager, cameraId: String): Camera {
-            val i = instance
-            if (i != null) {
-                return i
-            }
-            return synchronized(this) {
-                val created = Camera(cameraManager, cameraId)
-                instance = created
-                created
-            }
-        }
+    init {
+        cameraId = setUpCameraId(manager = cameraManager)
+        characteristics = cameraManager.getCameraCharacteristics(cameraId)
     }
 
     // Callbacks
@@ -294,6 +304,24 @@ class Camera constructor(private val cameraManager: CameraManager, private val c
     }
 
     // internal methods
+
+    /**
+     * Set up camera Id from id list
+     */
+    private fun setUpCameraId(manager: CameraManager): String {
+        for (cameraId in manager.cameraIdList) {
+            val characteristics = manager.getCameraCharacteristics(cameraId)
+
+            // We don't use a front facing camera in this sample.
+            val cameraDirection = characteristics.get(CameraCharacteristics.LENS_FACING)
+            if (cameraDirection != null &&
+                cameraDirection == CameraCharacteristics.LENS_FACING_FRONT) {
+                continue
+            }
+            return cameraId
+        }
+        throw IllegalStateException("Could not set Camera Id")
+    }
 
     private fun startBackgroundHandler() {
         if (backgroundThread != null) return
