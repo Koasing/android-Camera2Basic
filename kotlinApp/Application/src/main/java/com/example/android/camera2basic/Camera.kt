@@ -213,12 +213,16 @@ class Camera constructor(private val cameraManager: CameraManager) {
         override fun onCaptureProgressed(session: CameraCaptureSession,
                                          request: CaptureRequest,
                                          partialResult: CaptureResult) {
+            Log.d("====b ", "==== ${partialResult.toString()}");
             process(partialResult)
         }
 
         override fun onCaptureCompleted(session: CameraCaptureSession,
                                         request: CaptureRequest,
                                         result: TotalCaptureResult) {
+            if(state != State.PREVIEW) {
+                Log.d("====a ", "==== ${result.get(CaptureResult.CONTROL_AE_STATE)}");
+            }
             process(result)
         }
 
