@@ -99,7 +99,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
-        file = File(activity.getExternalFilesDir(null), PIC_FILE_NAME)
+        file = File(activity?.getExternalFilesDir(null), PIC_FILE_NAME)
     }
 
     override fun onResume() {
@@ -156,13 +156,14 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
 
             // Find out if we need to swap dimension to get the preview size relative to sensor
             // coordinate.
-            val displayRotation = activity.windowManager.defaultDisplay.rotation
+            val displayRotation = activity?.windowManager?.defaultDisplay?.rotation ?: return
 
             val sensorOrientation = camera.getSensorOrientation()
+
             val swappedDimensions = areDimensionsSwapped(sensorOrientation, displayRotation)
 
             val displaySize = Point()
-            activity.windowManager.defaultDisplay.getSize(displaySize)
+            activity?.windowManager?.defaultDisplay?.getSize(displaySize)
 
             // Danger, W.R.! Attempting to use too large a preview size could  exceed the camera
             // bus' bandwidth limitation, resulting in gorgeous previews but the storage of
@@ -235,12 +236,16 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
      * Opens the camera specified by [Camera2BasicFragment.cameraId].
      */
     private fun openCamera(width: Int, height: Int) {
-        val permission = ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA)
+        if (activity == null) {
+            Log.e(TAG, "activity is not ready!")
+            return
+        }
+        val permission = ContextCompat.checkSelfPermission(activity!!, Manifest.permission.CAMERA)
         if (permission != PackageManager.PERMISSION_GRANTED) {
             requestCameraPermission()
             return
         }
-        val manager = activity.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        val manager = activity!!.getSystemService(Context.CAMERA_SERVICE) as CameraManager
 
         try {
             camera = Camera.initInstance(manager).apply {
@@ -269,7 +274,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
      */
     private fun configureTransform(viewWidth: Int, viewHeight: Int) {
         activity ?: return
-        val rotation = activity.windowManager.defaultDisplay.rotation
+        val rotation = activity!!.windowManager.defaultDisplay.rotation
         val matrix = Matrix()
         val viewRect = RectF(0f, 0f, viewWidth.toFloat(), viewHeight.toFloat())
         val bufferRect = RectF(0f, 0f, previewSize.height.toFloat(), previewSize.width.toFloat())

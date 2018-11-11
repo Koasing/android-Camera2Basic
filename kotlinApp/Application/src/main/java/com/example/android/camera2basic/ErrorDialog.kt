@@ -26,17 +26,21 @@ import android.support.v4.app.DialogFragment
  */
 class ErrorDialog : DialogFragment() {
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-            AlertDialog.Builder(activity)
-                    .setMessage(arguments.getString(ARG_MESSAGE))
-                    .setPositiveButton(android.R.string.ok) { _, _ -> activity.finish() }
-                    .create()
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        val message = arguments?.getString(ARG_MESSAGE) ?: ""
+        return AlertDialog.Builder(activity)
+                .setMessage(message)
+                .setPositiveButton(android.R.string.ok) { _, _ -> activity?.finish() }
+                .create()
+    }
 
     companion object {
 
-        @JvmStatic private val ARG_MESSAGE = "message"
+        @JvmStatic
+        private val ARG_MESSAGE = "message"
 
-        @JvmStatic fun newInstance(message: String): ErrorDialog = ErrorDialog().apply {
+        @JvmStatic
+        fun newInstance(message: String): ErrorDialog = ErrorDialog().apply {
             arguments = Bundle().apply { putString(ARG_MESSAGE, message) }
         }
     }
