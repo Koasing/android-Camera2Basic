@@ -31,7 +31,7 @@ internal class ImageSaver(
             output = FileOutputStream(file).apply {
                 write(bytes)
             }
-        } catch (e: IOException) {
+        } catch (e: Throwable) {
             Log.e(TAG, e.toString())
         } finally {
             image.close()

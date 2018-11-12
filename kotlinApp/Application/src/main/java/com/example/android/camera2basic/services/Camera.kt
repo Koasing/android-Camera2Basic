@@ -51,6 +51,13 @@ interface OnFocusListener {
 }
 
 /**
+ * Listener interface that will send back the newly created [Size] of our camera output
+ */
+interface OnViewportSizeUpdatedListener {
+    fun onViewportSizeUpdated(viewportWidth: Int, viewportHeight: Int)
+}
+
+/**
  * Controller class that operates Non-UI Camera activity
  */
 class Camera constructor(private val cameraManager: CameraManager) {
@@ -115,6 +122,9 @@ class Camera constructor(private val cameraManager: CameraManager) {
     private var surface: Surface? = null
     private var isClosed = true
     var deviceRotation: Int = 0 // Device rotation is defined by Screen Rotation
+
+
+    var viewPortSizeListener: OnViewportSizeUpdatedListener? = null
 
     init {
         cameraId = setUpCameraId(manager = cameraManager)
