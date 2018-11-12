@@ -2,7 +2,6 @@
 // Interfaces and methods are updated for better readability
 package com.example.android.camera2basic.opengl
 
-import android.app.Activity
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -10,17 +9,13 @@ import android.graphics.SurfaceTexture
 import android.media.MediaRecorder
 import android.opengl.GLES11Ext
 import android.opengl.GLES20
-import android.opengl.GLES30
 import android.opengl.GLUtils
 import android.os.Handler
 import android.os.Looper
 import android.os.Message
 import android.util.Log
-import android.view.Surface
-import android.widget.Toast
 import com.example.android.camera2basic.io.getStringFromFileInAssets
 import com.example.android.camera2basic.services.Camera
-import com.example.android.camera2basic.services.ORIENTATIONS
 import com.example.android.camera2basic.services.OnViewportSizeUpdatedListener
 import java.io.File
 import java.io.FileInputStream
@@ -31,12 +26,11 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.ShortBuffer
-import java.util.ArrayList
+import java.util.*
 
 
 /** *
- * Base camera rendering class. Responsible for rendering to proper window contexts, as well as
- * recording video with built-in media recorder.
+ * Base camera rendering class. Responsible for rendering to proper window contexts.
  */
 class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
 
@@ -73,11 +67,6 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
      * Primary [WindowSurface] for rendering to screen
      */
     private lateinit var windowSurface: WindowSurface
-
-    /**
-     * primary [WindowSurface] for use with mediarecorder
-     */
-    private lateinit var recordSurface: WindowSurface
 
     /**
      * Texture created for GLES rendering of camera data
@@ -170,38 +159,12 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
     private var mViewportHeight: Int = 0
 
     /**
-     * boolean for recording so we cans wap the recording buffer into place
-     */
-    private var _isRecording = false
-
-    /**
      * Reference to Camera class
      */
     var camera: Camera? = null
 
-    /**
-     * Default [MediaRecorder] instance so we can record all the cool shit we make. You can override this,
-     * but make sure you handle the deletion of temp files yourself.
-     */
-    private var mediaRecorder: MediaRecorder? = null
-
-    /**
-     * temp file we write to for recording, then copy to where user wants to save video file
-     */
-    private var tempOutputFile: File? = null
-
-    /**
-     * file passed by user where to save the video upon completion of recording
-     */
-    private var outputFile: File? = null
-
     private lateinit var fragmentShaderPath: String
     private lateinit var vertexShaderPath: String
-
-    val isRecording: Boolean
-        get() = synchronized(this) {
-            return _isRecording
-        }
 
     /**
      * Simple ctor to use default shaders
@@ -238,7 +201,6 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
         textureArray = ArrayList()
 
         setupCameraView()
-        //setupMediaRecorder()
         setViewport(surfaceWidth, surfaceHeight)
 
         if (fragmentShaderCode == null || vertexShaderCode == null) {
@@ -271,91 +233,6 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
     }
 
     /**
-     * In order to properly make use of our awesome camera fragment and its renderers, we want
-     * to record the cool shit we do - so lets use the stock [MediaRecorder] class to do that.
-     * Because, i mean, why would I want to waste a month writing and implementing my own version
-     * when this should do it all on its own, right? ...right? :(
-     */
-    private fun setupMediaRecorder() {
-        val outputDir = context.cacheDir
-        try {
-            tempOutputFile = File.createTempFile("temp_mov", "mp4", outputDir)
-        } catch (e: IOException) {
-            throw RuntimeException("Temp file could not be created. Message: " + e.message)
-        }
-
-        mediaRecorder = MediaRecorder()
-
-        //set the sources
-        /**
-         * [MediaRecorder.AudioSource.CAMCORDER] is nice because on some fancier
-         * phones microphones will be aligned towards whatever camera is being used, giving us better
-         * directional audio. And if it doesn't have that, it will fallback to the default Microphone.
-         */
-        mediaRecorder?.setAudioSource(MediaRecorder.AudioSource.CAMCORDER)
-
-        /**
-         * Using [MediaRecorder.VideoSource.SURFACE] creates a [Surface]
-         * for us to use behind the scenes. We then pass this service to our [ExampleRenderer]
-         * later on for creation of our EGL contexts to render to.
-         *
-         * [MediaRecorder.VideoSource.SURFACE] is also the default for rendering
-         * out Camera2 api data without any shader manipulation at all.
-         */
-        mediaRecorder?.setVideoSource(MediaRecorder.VideoSource.SURFACE)
-
-        //set output
-        mediaRecorder?.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-
-        /**
-         * This would eventually be worth making a parameter at each call to [.setupMediaRecorder]
-         * so that you can pass in a timestamp or unique file name each time to setup up.
-         */
-        mediaRecorder?.setOutputFile(tempOutputFile?.path)
-
-        /**
-         * Media Recorder can be finicky with certain video sizes, so lets make sure we pass it
-         * something 'normal' - ie 720p or 1080p. this will create a surface of the same size,
-         * which will be used by our renderer for drawing once recording is enabled
-         */
-        mediaRecorder?.setVideoEncoder(MediaRecorder.VideoEncoder.H264)
-        mediaRecorder?.setVideoEncodingBitRate(VIDEO_BIT_RATE)
-        mediaRecorder?.setVideoSize(VIDEO_WIDTH, VIDEO_HEIGHT)
-        mediaRecorder?.setVideoFrameRate(30)
-
-        //setup audio
-        mediaRecorder?.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-        mediaRecorder?.setAudioEncodingBitRate(44800)
-
-        /**
-         * we can determine the rotation and orientation of our screen here for dynamic usage
-         * but since we know our app will be portrait only, setting the media recorder to
-         * 720x1280 rather than 1280x720 and letting orientation be 0 will keep everything looking normal
-         */
-        val rotation = (context as Activity).windowManager.defaultDisplay.rotation
-        val orientation = ORIENTATIONS.get(rotation)
-        Log.d(TAG, "orientation: $orientation")
-        mediaRecorder?.setOrientationHint(0)
-
-        try {
-            /**
-             * There are what seems like an infinite number of ways to fuck up the previous steps,
-             * so prepare() will throw an exception if you fail, and hope that stackoverflow can help.
-             */
-            mediaRecorder?.prepare()
-        } catch (e: IOException) {
-            Toast.makeText(context, "MediaRecorder failed on prepare()", Toast.LENGTH_LONG).show()
-            Log.e(TAG, "MediaRecorder failed on prepare() " + e.message)
-        }
-
-        Log.d(TAG,
-                "MediaRecorder surface: "
-                        + mediaRecorder?.surface
-                        + " isValid: "
-                        + mediaRecorder?.surface?.isValid)
-    }
-
-    /**
      * Initialize all necessary components for GLES rendering, creating window surfaces for drawing
      * the preview as well as the surface that will be used by MediaRecorder for recording
      */
@@ -366,11 +243,6 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
         windowSurface = WindowSurface(eglCore, surfaceTexture)
         windowSurface.makeCurrent()
 
-
-        if(_isRecording) {
-            //create recording surface
-            recordSurface = WindowSurface(eglCore, mediaRecorder?.surface, false)
-        }
         initGLComponents()
     }
 
@@ -394,11 +266,7 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
         deinitGLComponents()
 
         windowSurface.release()
-        recordSurface.release()
-
         eglCore.release()
-
-        mediaRecorder?.release()
     }
 
     protected fun deinitGLComponents() {
@@ -542,14 +410,6 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
      * this should only be called from our handler to ensure thread-safe
      */
     fun shutdown() {
-        synchronized(this) {
-            if (_isRecording)
-                stopRecording()
-            else
-            //not recording but still needs release
-                mediaRecorder?.release()
-        }
-
         //kill ouy thread
         Looper.myLooper()?.quit()
     }
@@ -563,25 +423,6 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
             if (eglCore.glVersion >= 3) {
                 draw()
 
-                if (_isRecording) {
-                    recordSurface.makeCurrentReadFrom(windowSurface)
-
-                    GlUtil.checkGlError("before glBlitFramebuffer")
-
-                    GLES30.glBlitFramebuffer(
-                            0, 0, windowSurface.width, windowSurface.height,
-                            0, 0, recordSurface.width, recordSurface.height, //must match the mediarecorder surface size
-                            GLES30.GL_COLOR_BUFFER_BIT, GLES30.GL_NEAREST
-                    )
-
-                    val err: Int = GLES30.glGetError()
-                    if (err != GLES30.GL_NO_ERROR)
-                        Log.w(TAG, "ERROR: glBlitFramebuffer failed: 0x" + Integer.toHexString(err))
-
-                    recordSurface.setPresentationTime(surfaceTexture.timestamp)
-                    recordSurface.swapBuffers()
-                }
-
                 //swap main buff
                 windowSurface.makeCurrent()
                 swapResult = windowSurface.swapBuffers()
@@ -589,20 +430,6 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
             //gl v2
             {
                 draw()
-
-                if (_isRecording) {
-                    // Draw for recording, swap.
-                    recordSurface.makeCurrent()
-
-                    setViewport(recordSurface.getWidth(), recordSurface.getHeight())
-                    draw()
-
-                    recordSurface.setPresentationTime(surfaceTexture.timestamp)
-                    recordSurface.swapBuffers()
-
-                    setViewport(windowSurface.getWidth(), windowSurface.getHeight())
-                }
-
                 windowSurface.makeCurrent()
                 swapResult = windowSurface.swapBuffers()
             }
@@ -778,45 +605,6 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
     }
 
     /**
-     * Triggers our built-in MediaRecorder to start recording
-     * @param outputFile a [File] where we'll be saving the completed render
-     */
-    fun startRecording(outputFile: File) {
-        this.outputFile = outputFile
-
-        if (this.outputFile == null)
-            throw RuntimeException("No output file specified! Make sure to call setOutputFile prior to recording!")
-
-        synchronized(this) {
-            _isRecording = true
-            mediaRecorder?.start()
-        }
-    }
-
-    /**
-     * stops our mediarecorder if its still running and starts our copy from temp to regular
-     */
-    fun stopRecording() {
-        synchronized(this) {
-            if (!_isRecording)
-                return
-
-            mediaRecorder?.stop()
-            mediaRecorder?.release()
-
-            _isRecording = false
-
-            try {
-
-                copyFile(tempOutputFile, outputFile)
-            } catch (e: IOException) {
-                e.printStackTrace()
-            }
-
-        }
-    }
-
-    /**
      * Copies file recorded to our temp file into the user-defined file upon completion
      */
     @Throws(IOException::class)
@@ -840,7 +628,6 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
         override fun toString(): String {
             return "[Texture] num: $texNum id: $texId, uniformName: $uniformName"
         }
-
     }
 
     /**
@@ -922,21 +709,5 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
          * "arbitrary" maximum number of textures. seems that most phones don't like more than 16
          */
         val MAX_TEXTURES = 16
-
-        /**
-         * Bitrate of our recorded video passed to our default [MediaRecorder]
-         */
-        private val VIDEO_BIT_RATE = 10000000
-
-        private val VIDEO_WIDTH = 720
-
-        /**
-         * Height of our recorded video - notice that if we use [com.androidexperiments.shadercam.view.SquareTextureView] that
-         * we can pss in the same value as the width here to make sure we render out a square movie. Otherwise, it will stretch the square
-         * textureview preview into a fullsize video. Play with the numbers here and the size of the TextureView you use to see the different types
-         * of output depending on scale values
-         */
-        private val VIDEO_HEIGHT = 1280
-
     }
 }
