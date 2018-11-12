@@ -327,7 +327,6 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texturesIds[0])
         checkGlError("Texture bind")
-
         previewSurfaceTexture = SurfaceTexture(texturesIds[0])
         previewSurfaceTexture?.setOnFrameAvailableListener(this)
     }
@@ -339,6 +338,7 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
         val vertexShaderHandle = GLES20.glCreateShader(GLES20.GL_VERTEX_SHADER)
         GLES20.glShaderSource(vertexShaderHandle, vertexShaderCode)
         GLES20.glCompileShader(vertexShaderHandle)
+
         checkGlError("Vertex shader compile")
 
         Log.d(TAG, "vertexShader info log:\n " + GLES20.glGetShaderInfoLog(vertexShaderHandle))

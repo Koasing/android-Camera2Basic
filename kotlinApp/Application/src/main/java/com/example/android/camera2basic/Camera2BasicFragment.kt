@@ -36,6 +36,7 @@ import android.support.v4.content.ContextCompat
 import android.util.Log
 import android.util.Size
 import android.view.*
+import com.example.android.camera2basic.opengl.CameraRenderer
 import com.example.android.camera2basic.services.Camera
 import com.example.android.camera2basic.services.ImageHandler
 import com.example.android.camera2basic.services.ImageSaver
@@ -46,7 +47,6 @@ import java.io.File
 
 class Camera2BasicFragment : Fragment(), View.OnClickListener,
         ActivityCompat.OnRequestPermissionsResultCallback {
-
     /**
      * [TextureView.SurfaceTextureListener] handles several lifecycle events on a
      * [TextureView].
@@ -54,7 +54,9 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
     private val surfaceTextureListener = object : TextureView.SurfaceTextureListener {
 
         override fun onSurfaceTextureAvailable(texture: SurfaceTexture, width: Int, height: Int) {
-            openCamera(width, height)
+            //openCamera(width, height)
+            // set Renderer
+            initRenderer(texture, width, height)
         }
 
         override fun onSurfaceTextureSizeChanged(texture: SurfaceTexture, width: Int, height: Int) {
@@ -67,10 +69,28 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
 
     }
 
+    private val onRendererReadyListener = object : CameraRenderer.OnRendererReadyListener {
+        override fun onRendererReady() {
+            activity?.runOnUiThread {
+                //previewSurface = cameraRenderer?.previewSurfaceTexture
+                openCamera(textureView.width, textureView.height, cameraRenderer?.previewSurfaceTexture)
+            }
+        }
+
+        override fun onRendererFinished() {
+        }
+
+    }
+
     /**
      * An [AutoFitTextureView] for camera preview.
      */
     private lateinit var textureView: AutoFitTextureView
+
+    /**
+     * SurfaceView to render camera preview
+     */
+    private var previewSurface: SurfaceTexture? = null
 
     /**
      * The [android.util.Size] of camera preview.
@@ -92,6 +112,11 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
      */
     private var camera: Camera? = null
 
+    /**
+     * Camera Renderer for OpenGL
+     */
+    private var cameraRenderer: CameraRenderer? = null
+
     override fun onCreateView(inflater: LayoutInflater,
             container: ViewGroup?,
             savedInstanceState: Bundle?
@@ -106,6 +131,8 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
         file = File(activity?.getExternalFilesDir(null), PIC_FILE_NAME)
+        val manager = activity!!.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        camera = Camera.initInstance(manager)
     }
 
     override fun onResume() {
@@ -241,7 +268,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
     /**
      * Opens the camera specified by [Camera2BasicFragment.cameraId].
      */
-    private fun openCamera(width: Int, height: Int) {
+    private fun openCamera(width: Int, height: Int, surfaceTexture: SurfaceTexture? = null) {
         if (activity == null) {
             Log.e(TAG, "activity is not ready!")
             return
@@ -251,16 +278,25 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
             requestCameraPermission()
             return
         }
-        val manager = activity!!.getSystemService(Context.CAMERA_SERVICE) as CameraManager
 
         try {
-            camera = Camera.initInstance(manager).apply {
-                setUpCameraOutputs(width, height, this)
+            camera?.let {
+                setUpCameraOutputs(width, height, it)
                 configureTransform(width, height)
-                this.open()
-                val texture = textureView.surfaceTexture
-                texture.setDefaultBufferSize(previewSize.width, previewSize.height)
-                this.start(Surface(texture))
+                it.open()
+                if(surfaceTexture != null) {
+                    surfaceTexture.setDefaultBufferSize(previewSize.width, previewSize.height)
+                    it.start(Surface(surfaceTexture))
+                } else {
+                    val texture = textureView.surfaceTexture
+                    texture.setDefaultBufferSize(previewSize.width, previewSize.height)
+                    it.start(Surface(texture))
+                }
+                // val texture = textureView.surfaceTexture
+                // texture.setDefaultBufferSize(previewSize.width, previewSize.height)
+                //it.start(Surface(texture))
+                //previewSurface?.setDefaultBufferSize(width, height)
+                //it.start(Surface(previewSurface))
             }
         } catch (e: CameraAccessException) {
             Log.e(TAG, e.toString())
@@ -327,6 +363,16 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
                     CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH)
         }
     }
+
+    private fun initRenderer(texture: SurfaceTexture, width: Int, height: Int) {
+        cameraRenderer = getRenderer(texture, width, height)
+        cameraRenderer?.camera = camera
+        cameraRenderer?.setOnRendererReadyListener(onRendererReadyListener)
+        cameraRenderer?.start()
+    }
+
+    private fun getRenderer(texture: SurfaceTexture, width: Int, height: Int) =
+            CameraRenderer(context = context!!, texture = texture, width = width, height = height)
 
     companion object {
 
