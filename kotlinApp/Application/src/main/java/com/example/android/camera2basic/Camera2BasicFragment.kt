@@ -36,6 +36,12 @@ import android.support.v4.content.ContextCompat
 import android.util.Log
 import android.util.Size
 import android.view.*
+import com.example.android.camera2basic.services.Camera
+import com.example.android.camera2basic.services.ImageHandler
+import com.example.android.camera2basic.services.ImageSaver
+import com.example.android.camera2basic.ui.AutoFitTextureView
+import com.example.android.camera2basic.ui.ConfirmationDialog
+import com.example.android.camera2basic.ui.ErrorDialog
 import java.io.File
 
 class Camera2BasicFragment : Fragment(), View.OnClickListener,
@@ -301,7 +307,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
         when (view.id) {
             R.id.picture -> camera?.takePicture(object : ImageHandler {
                 override fun handleImage(image: Image): Runnable {
-                    return ImageSaver(image,file)
+                    return ImageSaver(image, file)
                 }
             })
             R.id.info -> {

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.example.android.camera2basic
+package com.example.android.camera2basic.ui
 
 import android.app.AlertDialog
 import android.app.Dialog

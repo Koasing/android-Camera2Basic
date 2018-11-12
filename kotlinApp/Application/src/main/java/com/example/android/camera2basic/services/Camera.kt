@@ -1,4 +1,4 @@
-package com.example.android.camera2basic
+package com.example.android.camera2basic.services
 
 import android.graphics.ImageFormat
 import android.graphics.SurfaceTexture
@@ -13,6 +13,10 @@ import android.util.Size
 import android.util.SparseIntArray
 import android.view.OrientationEventListener
 import android.view.Surface
+import com.example.android.camera2basic.extensions.getCaptureSize
+import com.example.android.camera2basic.extensions.isAutoExposureSupported
+import com.example.android.camera2basic.extensions.isAutoWhiteBalanceSupported
+import com.example.android.camera2basic.extensions.isContinuousAutoFocusSupported
 import java.util.*
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit

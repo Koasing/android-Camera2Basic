@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.example.android.camera2basic
+package com.example.android.camera2basic.extensions
 
 import android.support.v4.app.FragmentActivity
 import android.support.v4.content.ContextCompat
