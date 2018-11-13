@@ -17,6 +17,7 @@
 package com.example.android.camera2basic
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
 import android.content.pm.PackageManager
@@ -37,6 +38,7 @@ import android.util.Log
 import android.util.Size
 import android.view.*
 import com.example.android.camera2basic.opengl.CameraRenderer
+import com.example.android.camera2basic.opengl.ColorShader
 import com.example.android.camera2basic.services.Camera
 import com.example.android.camera2basic.services.ImageHandler
 import com.example.android.camera2basic.services.ImageSaver
@@ -75,7 +77,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
     private val onRendererReadyListener = object : CameraRenderer.OnRendererReadyListener {
         override fun onRendererReady() {
             activity?.runOnUiThread {
-                previewSurface = cameraRenderer?.previewSurfaceTexture
+                previewSurface = colorShader?.previewSurfaceTexture
                 openCameraForOpenGL(textureView.width, textureView.height)
             }
         }
@@ -118,7 +120,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
     /**
      * Camera Renderer for OpenGL
      */
-    private var cameraRenderer: CameraRenderer? = null
+    private var colorShader: ColorShader? = null
 
     private val isOpenGLMode = true
 
@@ -127,10 +129,20 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
             savedInstanceState: Bundle?
     ): View? = inflater.inflate(R.layout.fragment_camera2_basic, container, false)
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         view.findViewById<View>(R.id.picture).setOnClickListener(this)
         view.findViewById<View>(R.id.info).setOnClickListener(this)
         textureView = view.findViewById(R.id.texture)
+
+        if(isOpenGLMode) {
+            // touch and update filter
+            textureView.setOnTouchListener { v, event ->
+                colorShader?.setTouchPoint(event.rawX, event.rawY)
+
+                return@setOnTouchListener true
+            }
+        }
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
@@ -328,7 +340,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
             camera?.let {
                 setUpCameraOutputs(width, height, it)
                 configureTransform(width, height)
-                cameraRenderer?.setViewport(width, height)
+                colorShader?.setViewport(width, height)
                 it.open()
                 previewSurface?.setDefaultBufferSize(previewSize.width, previewSize.height)
                 it.start(Surface(previewSurface))
@@ -399,14 +411,18 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
     }
 
     private fun initRenderer(texture: SurfaceTexture, width: Int, height: Int) {
-        cameraRenderer = getRenderer(texture, width, height)
-        cameraRenderer?.camera = camera
-        cameraRenderer?.setOnRendererReadyListener(onRendererReadyListener)
-        cameraRenderer?.start()
+        colorShader = getRenderer(texture, width, height)
+        colorShader?.camera = camera
+        colorShader?.setOnRendererReadyListener(onRendererReadyListener)
+        colorShader?.start()
     }
 
     private fun getRenderer(texture: SurfaceTexture, width: Int, height: Int) =
-            CameraRenderer(context = context!!, texture = texture, width = width, height = height)
+            ColorShader(
+                    context!!,
+                    texture,
+                    width,
+                    height)
 
     companion object {
 

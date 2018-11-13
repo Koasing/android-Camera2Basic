@@ -27,12 +27,16 @@ import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.ShortBuffer
 import java.util.*
+import kotlin.properties.Delegates
 
+interface Renderer {
+    fun setUniformsAndAttribs()
+}
 
 /** *
  * Base camera rendering class. Responsible for rendering to proper window contexts.
  */
-class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
+open class CameraRenderer : Renderer, Thread, SurfaceTexture.OnFrameAvailableListener {
 
     /**
      * if you create new files, just override these defaults in your subclass and
@@ -47,8 +51,8 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
      */
     private lateinit var context: Context
 
-    protected var surfaceWidth: Int = 0
-    protected var surfaceHeight: Int = 0
+    var surfaceWidth: Int = 0
+    var surfaceHeight: Int = 0
 
     protected var surfaceAspectRatio: Float = 0.toFloat()
 
@@ -85,7 +89,7 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
 
     private val textureCoords = floatArrayOf(0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f)
 
-    private var cameraShaderProgram: Int = 0
+    var cameraShaderProgram: Int = 0
 
     private var vertexBuffer: FloatBuffer? = null
 
@@ -445,7 +449,7 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
     /**
      * main draw routine
      */
-    fun draw() {
+    private fun draw() {
         GLES20.glViewport(0, 0, mViewportWidth, mViewportHeight)
 
         GLES20.glClearColor(1.0f, 0.0f, 0.0f, 0.0f)
@@ -453,7 +457,6 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
 
         //set shader
         GLES20.glUseProgram(cameraShaderProgram)
-
         setUniformsAndAttribs()
         setExtraTextures()
         drawElements()
@@ -463,7 +466,7 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
     /**
      * update the SurfaceTexture to the latest camera image
      */
-    protected fun updatePreviewTexture() {
+    private fun updatePreviewTexture() {
         previewSurfaceTexture?.updateTexImage()
         previewSurfaceTexture?.getTransformMatrix(cameraTransformMatrix)
     }
@@ -471,7 +474,7 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
     /**
      * base amount of attributes needed for rendering camera to screen
      */
-    protected fun setUniformsAndAttribs() {
+    override fun setUniformsAndAttribs() {
         val textureParamHandle = GLES20.glGetUniformLocation(cameraShaderProgram, "camTexture")
         val textureTranformHandle = GLES20.glGetUniformLocation(cameraShaderProgram, "camTextureTransform")
         textureCoordinateHandle = GLES20.glGetAttribLocation(cameraShaderProgram, "camTexCoordinate")
@@ -562,7 +565,7 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
      * if u need different uv coordinates, refer to [.setupTextures]
      * for how to create your own buffer
      */
-    protected fun setExtraTextures() {
+    private fun setExtraTextures() {
         textureArray?.forEach {
             val imageParamHandle = GLES20.glGetUniformLocation(cameraShaderProgram, it.uniformName)
 
@@ -572,11 +575,11 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
         }
     }
 
-    protected fun drawElements() {
+    private fun drawElements() {
         GLES20.glDrawElements(GLES20.GL_TRIANGLES, drawOrder.size, GLES20.GL_UNSIGNED_SHORT, drawListBuffer)
     }
 
-    protected fun onDrawCleanup() {
+    private fun onDrawCleanup() {
         GLES20.glDisableVertexAttribArray(positionHandle)
         GLES20.glDisableVertexAttribArray(textureCoordinateHandle)
     }
@@ -585,7 +588,7 @@ class CameraRenderer : Thread, SurfaceTexture.OnFrameAvailableListener {
      * utility for checking GL errors
      * @param op
      */
-    fun checkGlError(op: String) {
+    private fun checkGlError(op: String) {
         val error = GLES20.glGetError()
         if(error != GLES20.GL_NO_ERROR) {
             Log.e("SurfaceTest", op + ": glError " + GLUtils.getEGLErrorString(error))
