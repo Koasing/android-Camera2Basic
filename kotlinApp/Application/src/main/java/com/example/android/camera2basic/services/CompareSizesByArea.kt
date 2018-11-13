@@ -1,4 +1,4 @@
-package com.example.android.camera2basic
+package com.example.android.camera2basic.services
 
 import android.util.Size
 import java.lang.Long.signum
