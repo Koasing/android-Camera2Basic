@@ -13,10 +13,7 @@ import android.util.Size
 import android.util.SparseIntArray
 import android.view.OrientationEventListener
 import android.view.Surface
-import com.example.android.camera2basic.extensions.getCaptureSize
-import com.example.android.camera2basic.extensions.isAutoExposureSupported
-import com.example.android.camera2basic.extensions.isAutoWhiteBalanceSupported
-import com.example.android.camera2basic.extensions.isContinuousAutoFocusSupported
+import com.example.android.camera2basic.extensions.*
 import java.util.*
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
@@ -374,7 +371,6 @@ class Camera constructor(private val cameraManager: CameraManager) {
         } catch (e3: InterruptedException) {
 
         } finally {
-            Log.d(TAG, "===== startPreview lock released")
             openLock.release()
         }
     }
@@ -499,6 +495,8 @@ class Camera constructor(private val cameraManager: CameraManager) {
 
     fun getCaptureSize() = characteristics.getCaptureSize(CompareSizesByArea())
 
+    fun getPreviewSize(aspectRatio: Float) = characteristics.getPreviewSize(aspectRatio)
+
     /**
      * Get sensor orientation.
      * 0, 90, 180, 270.
@@ -507,63 +505,16 @@ class Camera constructor(private val cameraManager: CameraManager) {
 
     fun getFlashSupported() = characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
 
-    /**
-     * Given `choices` of `Size`s supported by a camera, choose the smallest one that
-     * is at least as large as the respective texture view size, and that is at most as large as the
-     * respective max size, and whose aspect ratio matches with the specified value. If such size
-     * doesn't exist, choose the largest one that is at most as large as the respective max size,
-     * and whose aspect ratio matches with the specified value.
-     *
-     * @param textureViewWidth  The width of the texture view relative to sensor coordinate
-     * @param textureViewHeight The height of the texture view relative to sensor coordinate
-     * @param maxWidth          The maximum width that can be chosen
-     * @param maxHeight         The maximum height that can be chosen
-     * @param aspectRatio       The aspect ratio
-     * @return The optimal `Size`, or an arbitrary one if none were big enough
-     */
     fun chooseOptimalSize(textureViewWidth: Int,
                           textureViewHeight: Int,
                           maxWidth: Int,
                           maxHeight: Int,
-                          aspectRatio: Size): Size {
-        var _maxWidth = maxWidth
-        var _maxHeight = maxHeight
-
-        if (_maxWidth > MAX_PREVIEW_WIDTH) {
-            _maxWidth = MAX_PREVIEW_WIDTH
-        }
-
-        if (_maxHeight > MAX_PREVIEW_HEIGHT) {
-            _maxHeight = MAX_PREVIEW_HEIGHT
-        }
-
-        val map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-            ?: return Size(0, 0)
-
-        val choices = map.getOutputSizes(SurfaceTexture::class.java)
-
-        // Collect the supported resolutions that are at least as big as the preview Surface
-        val bigEnough = ArrayList<Size>()
-        // Collect the supported resolutions that are smaller than the preview Surface
-        val notBigEnough = ArrayList<Size>()
-        val w = aspectRatio.width
-        val h = aspectRatio.height
-        for (option in choices) {
-            if (option.width <= _maxWidth && option.height <= _maxHeight &&
-                option.height == option.width * h / w) {
-                if (option.width >= textureViewWidth && option.height >= textureViewHeight) {
-                    bigEnough.add(option)
-                } else {
-                    notBigEnough.add(option)
-                }
-            }
-        }
-        // Pick the smallest of those big enough. If there is no one big enough, pick the
-        // largest of those not big enough.
-        return when {
-            bigEnough.size > 0 -> Collections.min(bigEnough, CompareSizesByArea())
-            notBigEnough.size > 0 -> Collections.max(notBigEnough, CompareSizesByArea())
-            else -> choices[0]
-        }
-    }
+                          aspectRatio: Size): Size =
+            characteristics.chooseOptimalSize(
+                    textureViewWidth,
+                    textureViewHeight,
+                    maxWidth,
+                    maxHeight,
+                    aspectRatio
+            )
 }

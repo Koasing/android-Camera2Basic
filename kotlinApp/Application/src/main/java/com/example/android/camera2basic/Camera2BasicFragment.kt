@@ -54,9 +54,12 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
     private val surfaceTextureListener = object : TextureView.SurfaceTextureListener {
 
         override fun onSurfaceTextureAvailable(texture: SurfaceTexture, width: Int, height: Int) {
-            //openCamera(width, height)
-            // set Renderer
-            initRenderer(texture, width, height)
+            if(isOpenGLMode) {
+                // set Renderer
+                initRenderer(texture, width, height)
+            } else {
+                openCamera(width, height)
+            }
         }
 
         override fun onSurfaceTextureSizeChanged(texture: SurfaceTexture, width: Int, height: Int) {
@@ -72,8 +75,8 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
     private val onRendererReadyListener = object : CameraRenderer.OnRendererReadyListener {
         override fun onRendererReady() {
             activity?.runOnUiThread {
-                //previewSurface = cameraRenderer?.previewSurfaceTexture
-                openCamera(textureView.width, textureView.height, cameraRenderer?.previewSurfaceTexture)
+                previewSurface = cameraRenderer?.previewSurfaceTexture
+                openCameraForOpenGL(textureView.width, textureView.height)
             }
         }
 
@@ -85,7 +88,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
     /**
      * An [AutoFitTextureView] for camera preview.
      */
-    private lateinit var textureView: AutoFitTextureView
+    private lateinit var textureView: TextureView
 
     /**
      * SurfaceView to render camera preview
@@ -117,6 +120,8 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
      */
     private var cameraRenderer: CameraRenderer? = null
 
+    private val isOpenGLMode = true
+
     override fun onCreateView(inflater: LayoutInflater,
             container: ViewGroup?,
             savedInstanceState: Bundle?
@@ -143,7 +148,11 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
         // a camera and start preview from here (otherwise, we wait until the surface is ready in
         // the SurfaceTextureListener).
         if (textureView.isAvailable) {
-            openCamera(textureView.width, textureView.height)
+            if(isOpenGLMode) {
+                openCameraForOpenGL(textureView.width, textureView.height)
+            } else {
+                openCamera(textureView.width, textureView.height)
+            }
         } else {
             textureView.surfaceTextureListener = surfaceTextureListener
         }
@@ -185,8 +194,12 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
         try {
 
             // For still image captures, we use the largest available size.
-            val largest = camera.getCaptureSize()
-
+            // val largest = camera.getCaptureSize()
+            // For preview, we want to make sure camera fits to screen size
+            val realSize = Point()
+            activity?.windowManager?.defaultDisplay?.getRealSize(realSize)
+            val aspectRatio = realSize.x.toFloat()/ realSize.y.toFloat()
+            val largest = camera.getPreviewSize(aspectRatio)
             // Find out if we need to swap dimension to get the preview size relative to sensor
             // coordinate.
             val displayRotation = activity?.windowManager?.defaultDisplay?.rotation ?: return
@@ -197,6 +210,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
 
             val displaySize = Point()
             activity?.windowManager?.defaultDisplay?.getSize(displaySize)
+
 
             // Danger, W.R.! Attempting to use too large a preview size could  exceed the camera
             // bus' bandwidth limitation, resulting in gorgeous previews but the storage of
@@ -216,12 +230,12 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
                     displaySize.y,
                     largest)
             }
-
+            Log.d(TAG, "===== preview $width $height $aspectRatio, $largest, $previewSize")
             // We fit the aspect ratio of TextureView to the size of preview we picked.
             if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                textureView.setAspectRatio(previewSize.width, previewSize.height)
+               // textureView.setAspectRatio(previewSize.width, previewSize.height)
             } else {
-                textureView.setAspectRatio(previewSize.height, previewSize.width)
+               // textureView.setAspectRatio(previewSize.height, previewSize.width)
             }
 
             // Check if the flash is supported.
@@ -268,7 +282,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
     /**
      * Opens the camera specified by [Camera2BasicFragment.cameraId].
      */
-    private fun openCamera(width: Int, height: Int, surfaceTexture: SurfaceTexture? = null) {
+    private fun openCamera(width: Int, height: Int) {
         if (activity == null) {
             Log.e(TAG, "activity is not ready!")
             return
@@ -284,26 +298,46 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
                 setUpCameraOutputs(width, height, it)
                 configureTransform(width, height)
                 it.open()
-                if(surfaceTexture != null) {
-                    surfaceTexture.setDefaultBufferSize(previewSize.width, previewSize.height)
-                    it.start(Surface(surfaceTexture))
-                } else {
-                    val texture = textureView.surfaceTexture
-                    texture.setDefaultBufferSize(previewSize.width, previewSize.height)
-                    it.start(Surface(texture))
-                }
-                // val texture = textureView.surfaceTexture
-                // texture.setDefaultBufferSize(previewSize.width, previewSize.height)
-                //it.start(Surface(texture))
-                //previewSurface?.setDefaultBufferSize(width, height)
-                //it.start(Surface(previewSurface))
+                val texture = textureView.surfaceTexture
+                texture.setDefaultBufferSize(previewSize.width, previewSize.height)
+                it.start(Surface(texture))
             }
         } catch (e: CameraAccessException) {
             Log.e(TAG, e.toString())
         } catch (e: InterruptedException) {
             throw RuntimeException("Interrupted while trying to lock camera opening.", e)
         }
+    }
 
+    /**
+     * Opens the camera for OpenGL. The main difference is that OpenGL requires Preview Surface
+     * For rendering Camera images.
+     */
+    private fun openCameraForOpenGL(width: Int, height: Int) {
+        if (activity == null) {
+            Log.e(TAG, "activity is not ready!")
+            return
+        }
+        val permission = ContextCompat.checkSelfPermission(activity!!, Manifest.permission.CAMERA)
+        if (permission != PackageManager.PERMISSION_GRANTED) {
+            requestCameraPermission()
+            return
+        }
+
+        try {
+            camera?.let {
+                setUpCameraOutputs(width, height, it)
+                configureTransform(width, height)
+                cameraRenderer?.setViewport(width, height)
+                it.open()
+                previewSurface?.setDefaultBufferSize(previewSize.width, previewSize.height)
+                it.start(Surface(previewSurface))
+            }
+        } catch (e: CameraAccessException) {
+            Log.e(TAG, e.toString())
+        } catch (e: InterruptedException) {
+            throw RuntimeException("Interrupted while trying to lock camera opening.", e)
+        }
     }
 
     /**
