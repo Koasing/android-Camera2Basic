@@ -47,6 +47,10 @@ import com.example.android.camera2basic.ui.ConfirmationDialog
 import com.example.android.camera2basic.ui.ErrorDialog
 import java.io.File
 
+enum class CameraMode {
+    AUTO_FIT, FULL_SCREEN, OPENGL
+}
+
 class Camera2BasicFragment : Fragment(), View.OnClickListener,
         ActivityCompat.OnRequestPermissionsResultCallback {
     /**
@@ -90,7 +94,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
     /**
      * An [AutoFitTextureView] for camera preview.
      */
-    private lateinit var textureView: TextureView
+    private lateinit var textureView: AutoFitTextureView
 
     /**
      * SurfaceView to render camera preview
@@ -122,7 +126,11 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
      */
     private var colorShader: ColorShader? = null
 
-    private val isOpenGLMode = true
+    private val cameraMode: CameraMode = CameraMode.FULL_SCREEN
+    private val isOpenGLMode
+      get() = cameraMode == CameraMode.OPENGL
+
+
 
     override fun onCreateView(inflater: LayoutInflater,
             container: ViewGroup?,
@@ -202,16 +210,27 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
      * @param width  The width of available size for camera preview
      * @param height The height of available size for camera preview
      */
-    private fun setUpCameraOutputs(width: Int, height: Int, camera: Camera) {
+    private fun setUpCameraOutputs(width: Int, height: Int, camera: Camera, mode: CameraMode) {
         try {
-
-            // For still image captures, we use the largest available size.
             // val largest = camera.getCaptureSize()
             // For preview, we want to make sure camera fits to screen size
-            val realSize = Point()
-            activity?.windowManager?.defaultDisplay?.getRealSize(realSize)
-            val aspectRatio = realSize.x.toFloat()/ realSize.y.toFloat()
-            val largest = camera.getPreviewSize(aspectRatio)
+
+            val largest = when(mode) {
+                CameraMode.AUTO_FIT -> {
+                    // we want to make sure captured image fits to screen size,
+                    // so choose the largest one we can get from supported capture sizes
+                    camera.getCaptureSize()
+                }
+                CameraMode.OPENGL, CameraMode.FULL_SCREEN -> {
+                    // In this example, opengl is also full screen.
+                    // When full screen, we choose the largest from supported surface view sizes
+                    val realSize = Point()
+                    activity?.windowManager?.defaultDisplay?.getRealSize(realSize)
+                    val aspectRatio = realSize.x.toFloat()/ realSize.y.toFloat()
+                    camera.getPreviewSize(aspectRatio)
+                }
+            }
+
             // Find out if we need to swap dimension to get the preview size relative to sensor
             // coordinate.
             val displayRotation = activity?.windowManager?.defaultDisplay?.rotation ?: return
@@ -223,7 +242,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
             val displaySize = Point()
             activity?.windowManager?.defaultDisplay?.getSize(displaySize)
 
-
+            Log.d(TAG, "===== display size ${displaySize.x} ${displaySize.y} ")
             // Danger, W.R.! Attempting to use too large a preview size could  exceed the camera
             // bus' bandwidth limitation, resulting in gorgeous previews but the storage of
             // garbage capture data.
@@ -242,14 +261,15 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
                     displaySize.y,
                     largest)
             }
-            Log.d(TAG, "===== preview $width $height $aspectRatio, $largest, $previewSize")
-            // We fit the aspect ratio of TextureView to the size of preview we picked.
-            if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-               // textureView.setAspectRatio(previewSize.width, previewSize.height)
-            } else {
-               // textureView.setAspectRatio(previewSize.height, previewSize.width)
-            }
 
+            if(mode == CameraMode.AUTO_FIT) {
+                // We fit the aspect ratio of TextureView to the size of preview we picked.
+                if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                    textureView.setAspectRatio(previewSize.width, previewSize.height)
+                } else {
+                    textureView.setAspectRatio(previewSize.height, previewSize.width)
+                }
+            }
             // Check if the flash is supported.
             flashSupported = camera.getFlashSupported()
 
@@ -307,7 +327,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
 
         try {
             camera?.let {
-                setUpCameraOutputs(width, height, it)
+                setUpCameraOutputs(width, height, it, cameraMode)
                 configureTransform(width, height)
                 it.open()
                 val texture = textureView.surfaceTexture
@@ -338,7 +358,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
 
         try {
             camera?.let {
-                setUpCameraOutputs(width, height, it)
+                setUpCameraOutputs(width, height, it, cameraMode)
                 configureTransform(width, height)
                 colorShader?.setViewport(width, height)
                 it.open()
