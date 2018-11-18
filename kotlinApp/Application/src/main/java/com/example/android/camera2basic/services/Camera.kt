@@ -36,6 +36,10 @@ val ORIENTATIONS = SparseIntArray().apply {
     append(Surface.ROTATION_270, 180)
 }
 
+enum class WBMode {
+  AUTO, SUNNY, INCANDECENT
+}
+
 private const val MAX_PREVIEW_WIDTH = 1920
 private const val MAX_PREVIEW_HEIGHT = 1080
 
@@ -108,6 +112,7 @@ class Camera constructor(private val cameraManager: CameraManager) {
     private var state = State.PREVIEW
     private var aeMode = CaptureRequest.CONTROL_AE_MODE_ON
     private var preAfState: Int? = null
+    var wbMode: WBMode = WBMode.AUTO
     /**
      * A [Handler] for running tasks in the background.
      */
@@ -119,7 +124,6 @@ class Camera constructor(private val cameraManager: CameraManager) {
     private var surface: Surface? = null
     private var isClosed = true
     var deviceRotation: Int = 0 // Device rotation is defined by Screen Rotation
-
 
     var viewPortSizeListener: OnViewportSizeUpdatedListener? = null
 
@@ -406,9 +410,21 @@ class Camera constructor(private val cameraManager: CameraManager) {
             builder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
         }
 
-        if (characteristics.isAutoWhiteBalanceSupported()) {
-            builder.set(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_AUTO)
+        when(wbMode) {
+            WBMode.AUTO -> {
+              if (characteristics.isAutoWhiteBalanceSupported()) {
+                builder.set(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_AUTO)
+              }
+            }
+            WBMode.SUNNY -> {
+                builder.set(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_DAYLIGHT)
+            }
+            WBMode.INCANDECENT -> {
+                builder.set(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_INCANDESCENT)
+            }
         }
+
+        builder.set(CaptureRequest.COLOR_CORRECTION_MODE, CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY)
     }
 
     /**

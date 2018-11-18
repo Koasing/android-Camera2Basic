@@ -42,6 +42,7 @@ import com.example.android.camera2basic.opengl.ColorShader
 import com.example.android.camera2basic.services.Camera
 import com.example.android.camera2basic.services.ImageHandler
 import com.example.android.camera2basic.services.ImageSaver
+import com.example.android.camera2basic.services.WBMode
 import com.example.android.camera2basic.ui.AutoFitTextureView
 import com.example.android.camera2basic.ui.ConfirmationDialog
 import com.example.android.camera2basic.ui.ErrorDialog
@@ -141,6 +142,10 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         view.findViewById<View>(R.id.picture).setOnClickListener(this)
         view.findViewById<View>(R.id.info).setOnClickListener(this)
+        view.findViewById<View>(R.id.wb).setOnClickListener(this)
+        view.findViewById<View>(R.id.sun).setOnClickListener(this)
+        view.findViewById<View>(R.id.light).setOnClickListener(this)
+
         textureView = view.findViewById(R.id.texture)
 
         if(isOpenGLMode) {
@@ -215,7 +220,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
             // val largest = camera.getCaptureSize()
             // For preview, we want to make sure camera fits to screen size
 
-            val largest = when(mode) {
+            val largest: Size = when(mode) {
                 CameraMode.AUTO_FIT -> {
                     // we want to make sure captured image fits to screen size,
                     // so choose the largest one we can get from supported capture sizes
@@ -227,8 +232,10 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
                     val realSize = Point()
                     activity?.windowManager?.defaultDisplay?.getRealSize(realSize)
                     val aspectRatio = realSize.x.toFloat()/ realSize.y.toFloat()
+                    Log.d(TAG, "====== aspect ratio $aspectRatio")
                     camera.getPreviewSize(aspectRatio)
                 }
+                else -> camera.getCaptureSize()
             }
 
             // Find out if we need to swap dimension to get the preview size relative to sensor
@@ -242,7 +249,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
             val displaySize = Point()
             activity?.windowManager?.defaultDisplay?.getSize(displaySize)
 
-            Log.d(TAG, "===== display size ${displaySize.x} ${displaySize.y} ")
+            Log.d(TAG, "===== display size ${displaySize.x} ${displaySize.y} ${largest} ")
             // Danger, W.R.! Attempting to use too large a preview size could  exceed the camera
             // bus' bandwidth limitation, resulting in gorgeous previews but the storage of
             // garbage capture data.
@@ -420,13 +427,21 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
                             .show()
                 }
             }
-        }
-    }
-
-    private fun setAutoFlash(requestBuilder: CaptureRequest.Builder) {
-        if (flashSupported) {
-            requestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
-                    CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH)
+            R.id.wb -> {
+                camera?.close()
+                camera?.wbMode = WBMode.AUTO
+                openCamera(textureView.width, textureView.height)
+            }
+            R.id.sun -> {
+                camera?.close()
+                camera?.wbMode = WBMode.SUNNY
+                openCamera(textureView.width, textureView.height)
+            }
+            R.id.light -> {
+                camera?.close()
+                camera?.wbMode = WBMode.INCANDECENT
+                openCamera(textureView.width, textureView.height)
+            }
         }
     }
 
