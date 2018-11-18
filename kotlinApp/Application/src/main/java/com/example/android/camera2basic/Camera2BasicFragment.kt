@@ -46,6 +46,7 @@ import com.example.android.camera2basic.services.WBMode
 import com.example.android.camera2basic.ui.AutoFitTextureView
 import com.example.android.camera2basic.ui.ConfirmationDialog
 import com.example.android.camera2basic.ui.ErrorDialog
+import com.example.android.camera2basic.ui.FocusView
 import java.io.File
 
 enum class CameraMode {
@@ -132,6 +133,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
       get() = cameraMode == CameraMode.OPENGL
 
 
+    private lateinit var focus: FocusView
 
     override fun onCreateView(inflater: LayoutInflater,
             container: ViewGroup?,
@@ -145,16 +147,26 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
         view.findViewById<View>(R.id.wb).setOnClickListener(this)
         view.findViewById<View>(R.id.sun).setOnClickListener(this)
         view.findViewById<View>(R.id.light).setOnClickListener(this)
-
+        focus = view.findViewById(R.id.focus_view)
         textureView = view.findViewById(R.id.texture)
 
         if(isOpenGLMode) {
             // touch and update filter
             textureView.setOnTouchListener { v, event ->
                 colorShader?.setTouchPoint(event.rawX, event.rawY)
-
                 return@setOnTouchListener true
             }
+        }
+
+        textureView.setOnTouchListener { v, event ->
+
+            camera?.manualFocus(
+                    event.x,
+                    event.y,
+                    textureView.width,
+                    textureView.height)
+            focus.showFocus(event.x.toInt(), event.y.toInt())
+            return@setOnTouchListener true
         }
     }
 

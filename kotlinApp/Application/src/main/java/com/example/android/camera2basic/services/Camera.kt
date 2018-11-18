@@ -1,6 +1,7 @@
 package com.example.android.camera2basic.services
 
 import android.graphics.ImageFormat
+import android.graphics.Rect
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.*
 import android.hardware.camera2.CameraAccessException
@@ -17,6 +18,12 @@ import com.example.android.camera2basic.extensions.*
 import java.util.*
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
+import android.hardware.camera2.CameraMetadata
+import android.hardware.camera2.CaptureRequest
+import android.hardware.camera2.params.MeteringRectangle
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraDevice
+import android.support.v4.math.MathUtils.clamp
 
 
 private const val TAG = "CAMERA"
@@ -493,6 +500,59 @@ class Camera constructor(private val cameraManager: CameraManager) {
         }
     }
 
+
+  /**
+   * Focus manually
+   * @param x touch X coordinate
+   * @param y touch Y coordinate
+   * @param width screen width
+   * @param height screen height
+   */
+  fun manualFocus(x: Float, y: Float, width: Int, height: Int) {
+    // captureSession can be null with Monkey tap
+    if (captureSession == null || cameraDevice == null) {
+      return
+    }
+    try {
+      val builder = cameraDevice?.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW) ?: return
+      builder.addTarget(surface)
+
+      val rect = characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE)
+      val areaSize = 200
+
+      if (rect == null) {
+        return
+      }
+
+      val right = rect.right
+      val bottom = rect.bottom
+      val centerX = x.toInt()
+      val centerY = y.toInt()
+      // Adjust the point of focus in the screen
+      val ll = (centerX * right - areaSize) / width
+      val rr = (centerY * bottom - areaSize) / height
+
+      val focusLeft = clamp(ll, 0, right)
+      val focusBottom = clamp(rr, 0, bottom)
+      val newRect = Rect(focusLeft, focusBottom, focusLeft + areaSize, focusBottom + areaSize)
+      // Adjust focus area with metering weight
+      val meteringRectangle = MeteringRectangle(newRect, 500)
+      builder.set(CaptureRequest.CONTROL_AF_REGIONS, arrayOf(meteringRectangle))
+      builder.set(CaptureRequest.CONTROL_AE_REGIONS, arrayOf(meteringRectangle))
+      builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO)
+
+      // Request should be repeated to maintain preview focus
+      captureSession?.setRepeatingRequest(builder.build(), captureCallback, backgroundHandler)
+
+      // Trigger Focus
+      builder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_START)
+      builder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER,
+              CameraMetadata.CONTROL_AE_PRECAPTURE_TRIGGER_START)
+      captureSession?.capture(builder.build(), captureCallback, backgroundHandler)
+    } catch (e: IllegalStateException) {
+    } catch (e: CameraAccessException) {
+    }
+  }
     /**
      * Retrieves the image orientation from the specified screen rotation.
      * Used to calculate bitmap image rotation
