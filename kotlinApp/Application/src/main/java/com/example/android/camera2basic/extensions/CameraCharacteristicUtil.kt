@@ -72,7 +72,7 @@ fun chooseOutputSize(sizes: List<Size>, aspectRatio: Float): Size {
         // portrait or square
         val potenitals = sizes.filter { it.height.toFloat() / it.width.toFloat() == aspectRatio }
         return if(potenitals.isNotEmpty()) {
-            potenitals.firstOrNull { it.height == 1080 || it.height == 720 } ?: sizes[0]
+            potenitals.firstOrNull { it.height == 1080 || it.height == 720 } ?: potenitals[0]
         } else {
             sizes[0]
         }
