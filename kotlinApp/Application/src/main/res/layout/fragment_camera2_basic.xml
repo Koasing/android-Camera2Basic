@@ -54,6 +54,28 @@
             android:layout_toRightOf="@+id/sun"
     />
 
+    <ImageView
+        android:id="@+id/android"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="24dp"
+        android:src="@drawable/ic_baseline_android_24px"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:visibility="gone"
+        />
+
+    <ImageView
+        android:id="@+id/gradation"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="24dp"
+        android:src="@drawable/ic_baseline_grade_24px"
+        android:layout_alignParentTop="true"
+        android:layout_toLeftOf="@+id/android"
+        android:visibility="gone"
+        />
+
     <FrameLayout
         android:id="@+id/control"
         android:layout_width="match_parent"
