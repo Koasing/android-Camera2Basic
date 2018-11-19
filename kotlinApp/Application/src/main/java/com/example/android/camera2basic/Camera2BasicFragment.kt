@@ -118,6 +118,8 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
      */
     private var flashSupported = false
 
+    private var isGradationOn = false
+
     /**
      * Camera module
      */
@@ -128,7 +130,7 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
      */
     private var colorShader: ColorShader? = null
 
-    private val cameraMode: CameraMode = CameraMode.FULL_SCREEN
+    private val cameraMode: CameraMode = CameraMode.OPENGL
     private val isOpenGLMode
       get() = cameraMode == CameraMode.OPENGL
 
@@ -147,14 +149,29 @@ class Camera2BasicFragment : Fragment(), View.OnClickListener,
         view.findViewById<View>(R.id.wb).setOnClickListener(this)
         view.findViewById<View>(R.id.sun).setOnClickListener(this)
         view.findViewById<View>(R.id.light).setOnClickListener(this)
+        val stamp = view.findViewById<View>(R.id.android)
+        stamp.setOnClickListener(this)
+        val gradation = view.findViewById<View>(R.id.gradation)
+        gradation.setOnClickListener(this)
         focus = view.findViewById(R.id.focus_view)
         textureView = view.findViewById(R.id.texture)
 
         if(isOpenGLMode) {
-            // touch and update filter
-            textureView.setOnTouchListener { v, event ->
-                colorShader?.setTouchPoint(event.rawX, event.rawY)
-                return@setOnTouchListener true
+            stamp.visibility = View.VISIBLE
+            stamp.setOnClickListener {
+
+            }
+            gradation.visibility = View.VISIBLE
+            gradation.setOnClickListener {
+                isGradationOn = if(isGradationOn) {
+                    colorShader?.stopRandomColorChange()
+                    Log.d(TAG, "====== off")
+                    false
+                } else {
+                    Log.d(TAG, "====== on")
+                    colorShader?.randomlyChangeColor()
+                    true
+                }
             }
         }
 
