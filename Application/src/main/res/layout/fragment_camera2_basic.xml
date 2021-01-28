@@ -49,6 +49,36 @@
             android:padding="20dp"
             android:src="@drawable/ic_action_info" />
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/isoLevel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="iso" />
+
+            <TextView
+                android:id="@+id/exposureDuration"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="exposure" />
+
+            <TextView
+                android:id="@+id/aperture"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="aperture" />
+
+            <TextView
+                android:id="@+id/focusDistance"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="focusDistance" />
+        </LinearLayout>
+
     </FrameLayout>
 
 </RelativeLayout>

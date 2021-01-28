@@ -57,6 +57,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
@@ -280,6 +281,11 @@ public class Camera2BasicFragment extends Fragment
      */
     private int mSensorOrientation;
 
+    private TextView txtIso;
+    private TextView txtExposure;
+    private TextView txtAperture;
+    private TextView txtFocusDistance;
+
     /**
      * A {@link CameraCaptureSession.CaptureCallback} that handles events related to JPEG capture.
      */
@@ -289,7 +295,33 @@ public class Camera2BasicFragment extends Fragment
         private void process(CaptureResult result) {
             switch (mState) {
                 case STATE_PREVIEW: {
-                    // We have nothing to do when the camera preview is working normally.
+                    try {
+                        // ISO
+                        final int ISO = result.get(CaptureResult.SENSOR_SENSITIVITY);
+
+                        // Exposure Time (=Shutter Speed)
+                        long exposureTimeInNanoSecond = result.get(CaptureResult.SENSOR_EXPOSURE_TIME);
+                        final double exposureTime = (double)exposureTimeInNanoSecond / (double)1000000000;
+
+                        // Aperture (f-value)
+                        final float lensAperture = result.get(CaptureResult.LENS_APERTURE);
+
+                        // Focus Distance.
+                        // Refer https://developer.android.com/reference/kotlin/android/hardware/camera2/CameraCharacteristics#LENS_INFO_FOCUS_DISTANCE_CALIBRATION:android.hardware.camera2.CameraCharacteristics.Key
+                        final float focusDistance = result.get(CaptureResult.LENS_FOCUS_DISTANCE);
+
+                        getActivity().runOnUiThread(new Runnable() {
+                            public void run() {
+                                txtIso.setText(String.format("ISO = %d", ISO));
+                                txtExposure.setText(String.format("Exposure Time = %f", exposureTime));
+                                txtAperture.setText(String.format("Lens Aperture = %f", lensAperture));
+                                txtFocusDistance.setText(String.format("Focus Distance = %f", focusDistance));
+                            }
+                        });
+                    } catch (NullPointerException e) {
+                        // ignore
+                    }
+
                     break;
                 }
                 case STATE_WAITING_LOCK: {
@@ -429,6 +461,11 @@ public class Camera2BasicFragment extends Fragment
         view.findViewById(R.id.picture).setOnClickListener(this);
         view.findViewById(R.id.info).setOnClickListener(this);
         mTextureView = (AutoFitTextureView) view.findViewById(R.id.texture);
+
+        txtIso = (TextView) view.findViewById(R.id.isoLevel);
+        txtExposure = (TextView) view.findViewById(R.id.exposureDuration);
+        txtAperture = (TextView) view.findViewById(R.id.aperture);
+        txtFocusDistance = (TextView) view.findViewById(R.id.focusDistance);
     }
 
     @Override
